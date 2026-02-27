@@ -1,0 +1,8 @@
+{
+  "name": "saas-architecture",
+  "version": "1.0.0",
+  "description": "Design product architecture and system boundaries for early-stage SaaS applications.",
+  "author": "AdaL",
+  "tags": ["architecture", "saas", "system-design", "backend"],
+  "dependencies": {}
+}

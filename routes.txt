@@ -1,0 +1,178 @@
+# UserTest Platform - Next.js App Router Route Architecture
+
+For demo flow, see **TEST_SCRIPT.md**.
+
+---
+
+## Public Routes
+
+| Route | Description |
+|-------|-------------|
+| `/` | Landing page - Hero: "See your app through fresh eyes" |
+| `/dev/signin` | Developer sign-in (Supabase auth) |
+| `/dev/signup` | Developer sign-up flow |
+| `/tester/signin` | Tester sign-in |
+| `/tester/signup` | Tester sign-up flow |
+| `/auth/auth-code-error` | Auth error page (e.g. OAuth code exchange failure) |
+| `/auth/stripe-return` | Return page after Stripe Checkout/Portal (`?next=` defaults to `/dev/payments`) |
+
+---
+
+## Protected Developer Routes (prefix: `/dev`)
+
+| Route | Description |
+|-------|-------------|
+| `/dev` | Developer dashboard - task list, status badges, "New Task" button |
+| `/dev/tasks` | List of developer's created tasks |
+| `/dev/tasks/new` | Create new task - app URL, task brief, budget selector |
+| `/dev/tasks/[id]` | Task detail - video player + grading (TaskReviewPanel inline) |
+| `/dev/submissions` | Global submissions list (placeholder) |
+| `/dev/payments` | Payments - wallet, add funds, transaction history |
+| `/dev/settings` | Developer settings - profile, payment method, notifications |
+
+**Developer Grading Flow:**
+```
+Task Detail (/dev/tasks/[id]) → TaskReviewPanel (inline video + approve/reject + rating)
+```
+Grading is done inline via server actions; no separate /grade route.
+
+---
+
+## Protected Tester Routes (prefix: `/tester`)
+
+| Route | Description |
+|-------|-------------|
+| `/tester` | Redirects to /tester/available |
+| `/tester/available` | Browse available tasks |
+| `/tester/my-tests` | My active tests / submissions |
+| `/tester/tasks/[id]` | Task brief - app link, steps, tips, link to submit |
+| `/tester/tasks/[id]/record` | Redirects to /tester/tasks/[id]/submit |
+| `/tester/tasks/[id]/submit` | Submit video - upload, preview, submit |
+| `/tester/earnings` | Earnings - balance, payout history |
+| `/tester/payouts` | Redirects to /tester/earnings |
+| `/tester/settings` | Tester settings - profile, payment info |
+
+**Redirects:**
+- `/tester/auth/signin` → `/tester/signin`
+- `/tester/auth/signup` → `/tester/signup`
+
+---
+
+## API Routes
+
+| Route | Method | Description |
+|-------|--------|-------------|
+| `/auth/callback` | GET | Supabase auth callback (OAuth / magic link) |
+| `/api/wallet/balance` | GET | Get wallet balance |
+| `/api/wallet/transactions` | GET | List wallet transactions |
+| `/api/stripe/create-checkout` | POST | Create Stripe checkout session (add funds) |
+| `/api/stripe/create-portal-session` | POST | Create Stripe Customer Portal session (update payment method) |
+| `/api/stripe/payment-method` | GET | Get default payment method (brand, last4) |
+| `/api/stripe/webhook` | POST | Stripe webhook handler |
+| `/api/stripe/connect/create-account` | POST | Create Stripe Connect Express account (tester only) |
+| `/api/stripe/connect/account-link` | POST | Get Connect account link for onboarding |
+| `/api/stripe/connect/status` | GET | Get Connect status (hasPayoutMethod, trust_level, completed_tasks_count) |
+| `/api/stripe/connect/request-payout` | POST | Tester request payout (transfer to Connect account) |
+
+**Note:** Tasks, submissions, and grading use server actions (not REST API routes).
+
+---
+
+## Route Groups (Next.js)
+
+| Group | Path | Purpose |
+|-------|------|---------|
+| `(marketing)` | `/` | Landing page layout |
+| `(app)` | `/tester/*` | Tester app layout (sidebar) |
+| `(auth)` | `/tester/signin`, `/tester/signup` | Tester auth layout |
+
+---
+
+## Middleware
+
+- **Supabase session refresh** – `middleware.ts` refreshes Supabase auth cookies on each request.
+- **No route-level protection** – Auth is enforced per-page. Protected pages call `redirect()` if no user session (server-side).
+- **Role-based redirects** – Sign-in redirects to `/dev` or `/tester/available` based on profile role.
+
+---
+
+## Actual app/ Directory Tree
+
+No duplicate routes (e.g. `tester/available` vs `tester/(app)/available`): only `tester/(app)/available` exists.
+
+```
+src/app/
+├── (marketing)/
+│   ├── layout.tsx
+│   └── page.tsx                    # /
+├── dev/
+│   ├── layout.tsx
+│   ├── page.tsx                     # /dev
+│   ├── signin/page.tsx
+│   ├── signup/page.tsx
+│   ├── tasks/
+│   │   ├── page.tsx                 # /dev/tasks
+│   │   ├── new/page.tsx             # /dev/tasks/new
+│   │   └── [id]/
+│   │       ├── page.tsx             # /dev/tasks/[id] + TaskReviewPanel
+│   │       ├── TaskReviewPanel.tsx
+│   │       └── actions.ts           # approveSubmission, rejectSubmission
+│   ├── submissions/page.tsx        # /dev/submissions
+│   ├── payments/page.tsx            # /dev/payments
+│   └── settings/page.tsx            # /dev/settings
+├── tester/
+│   ├── layout.tsx
+│   ├── page.tsx                     # redirect → /tester/available
+│   ├── (app)/
+│   │   ├── layout.tsx
+│   │   ├── page.tsx                 # redirect → /tester/available
+│   │   ├── available/page.tsx       # /tester/available
+│   │   ├── my-tests/page.tsx        # /tester/my-tests
+│   │   ├── earnings/page.tsx        # /tester/earnings
+│   │   ├── payouts/page.tsx         # redirect → /tester/earnings
+│   │   ├── settings/page.tsx        # /tester/settings
+│   │   └── tasks/[id]/
+│   │       ├── page.tsx             # /tester/tasks/[id]
+│   │       ├── record/page.tsx      # redirect → submit
+│   │       └── submit/page.tsx      # /tester/tasks/[id]/submit
+│   ├── (auth)/
+│   │   ├── layout.tsx
+│   │   ├── signin/page.tsx          # /tester/signin
+│   │   └── signup/page.tsx          # /tester/signup
+│   └── auth/
+│       ├── signin/page.tsx          # redirect → /tester/signin
+│       └── signup/page.tsx         # redirect → /tester/signup
+├── auth/
+│   ├── callback/route.ts            # /auth/callback
+│   ├── auth-code-error/page.tsx     # /auth/auth-code-error
+│   └── stripe-return/page.tsx       # /auth/stripe-return (return from Portal/Checkout)
+└── api/
+    ├── wallet/
+    │   ├── balance/route.ts
+    │   └── transactions/route.ts
+    └── stripe/
+        ├── create-checkout/route.ts
+        ├── create-portal-session/route.ts
+        ├── payment-method/route.ts
+        ├── webhook/route.ts
+        └── connect/
+            ├── create-account/route.ts
+            ├── account-link/route.ts
+            ├── status/route.ts
+            └── request-payout/route.ts
+```
+
+---
+
+## Key Data Model (Grading)
+
+### Submission Status Flow
+```
+PENDING → APPROVED (payment released to tester wallet)
+    ↓
+REJECTED → (resubmit) → PENDING
+```
+
+### Server Actions (dev/tasks/[id]/actions.ts)
+- `approveSubmission({ submissionId, taskId, developerRating })` – Approve, credit tester wallet, update task to completed
+- `rejectSubmission({ submissionId, taskId, feedback })` – Reject with optional feedback

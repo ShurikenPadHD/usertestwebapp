@@ -1,0 +1,8 @@
+{
+  "name": "mvp-prioritization",
+  "version": "1.0.0",
+  "description": "Define the smallest lovable product and feature scope using prioritization frameworks.",
+  "author": "AdaL",
+  "tags": ["mvp", "prioritization", "roadmap", "saas"],
+  "dependencies": {}
+}

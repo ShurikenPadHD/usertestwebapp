@@ -1,0 +1,8 @@
+{
+  "name": "ui-system-enforcer",
+  "version": "1.0.0",
+  "description": "Enforce UI consistency across the app by validating components against the design system defined in UI_SPEC.md.",
+  "author": "AdaL",
+  "tags": ["ui", "design-system", "consistency", "tailwind", "components"],
+  "dependencies": {}
+}

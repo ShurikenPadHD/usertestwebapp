@@ -1,0 +1,8 @@
+{
+  "name": "ui-spec-consolidator",
+  "version": "1.0.0",
+  "description": "Compare implemented UI in Next.js app with UI_SPEC.md and UX_SPEC.md, generating a consolidation report showing coverage, mismatches, and missing elements.",
+  "author": "AdaL",
+  "tags": ["ui", "spec", "consolidation", "audit", "coverage", "alignment"],
+  "dependencies": {}
+}

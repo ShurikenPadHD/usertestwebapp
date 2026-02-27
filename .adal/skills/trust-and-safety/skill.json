@@ -1,0 +1,8 @@
+{
+  "name": "trust-and-safety",
+  "version": "1.0.0",
+  "description": "Design trust, verification, and anti-abuse systems for paid user-generated proof workflows.",
+  "author": "AdaL",
+  "tags": ["trust", "safety", "verification", "fraud", "moderation", "marketplace"],
+  "dependencies": {}
+}

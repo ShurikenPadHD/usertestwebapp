@@ -1,0 +1,8 @@
+{
+  "name": "marketplace-design",
+  "version": "1.0.0",
+  "description": "Design healthy two-sided marketplace dynamics for SaaS platforms with payments and user-generated work.",
+  "author": "AdaL",
+  "tags": ["marketplace", "two-sided", "liquidity", "saas", "platform"],
+  "dependencies": {}
+}

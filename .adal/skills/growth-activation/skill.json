@@ -1,0 +1,8 @@
+{
+  "name": "growth-activation",
+  "version": "1.0.0",
+  "description": "Design activation and retention loops for early SaaS products.",
+  "author": "AdaL",
+  "tags": ["growth", "activation", "retention", "loops", "saas"],
+  "dependencies": {}
+}

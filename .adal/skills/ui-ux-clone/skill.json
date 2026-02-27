@@ -1,0 +1,10 @@
+{
+  "name": "ui-ux-clone",
+  "version": "1.0.0",
+  "description": "Clone and systematize UI/UX from reference websites using Chrome DevTools MCP. Extracts layout, tokens, typography, and spacing to rebuild in Tailwind/React.",
+  "author": "AdaL",
+  "tags": ["ui", "ux", "frontend", "tailwind", "react", "chrome-mcp", "clone"],
+  "dependencies": {
+    "mcp": ["chrome-devtools"]
+  }
+}

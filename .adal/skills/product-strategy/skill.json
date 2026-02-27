@@ -1,0 +1,8 @@
+{
+  "name": "product-strategy",
+  "version": "1.0.0",
+  "description": "Define product positioning, ICP, differentiation, and value proposition for early-stage SaaS.",
+  "author": "AdaL",
+  "tags": ["strategy", "saas", "positioning", "icp", "mvp"],
+  "dependencies": {}
+}
