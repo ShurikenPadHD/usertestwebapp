@@ -42,6 +42,7 @@ export default async function DevTaskDetailPage({
       notes: s.notes ?? '',
       status: s.status as 'pending' | 'approved' | 'rejected',
       videoUrl: s.video_url ?? '',
+      aiAnalysis: s.ai_analysis ?? null,
     }
   })
 
@@ -55,23 +56,24 @@ export default async function DevTaskDetailPage({
     appUrl: task.app_url,
     budget: Number(task.budget),
     status: taskStatusLabel(task.status),
+    steps: task.steps || [],
   }
 
   if (submissions.length === 0) {
     return (
       <div className="flex-1 p-6 max-w-6xl mx-auto">
         <div className="mb-6">
-          <Link href="/dev" className="text-gray-400 hover:text-white text-sm inline-flex items-center gap-2">
+          <Link href="/dev" className="text-gray-500 hover:text-gray-700 text-sm inline-flex items-center gap-2">
             <span>←</span> Back to Dashboard
           </Link>
           <div className="flex justify-between items-start mt-4">
-            <h1 className="text-2xl font-bold">{taskDisplay.title}</h1>
-            <span className="text-xl font-semibold text-green-400">${taskDisplay.budget}</span>
+            <h1 className="text-2xl font-bold text-gray-900">{taskDisplay.title}</h1>
+            <span className="text-xl font-semibold text-green-600">${taskDisplay.budget}</span>
           </div>
         </div>
-        <div className="rounded-xl border border-white/10 bg-white/5 p-12 text-center">
-          <p className="text-gray-400 text-lg">No submissions yet for this task.</p>
-          <p className="text-gray-500 text-sm mt-2">Testers will appear here once they complete and submit their recordings.</p>
+        <div className="rounded-xl border border-gray-200 bg-gray-50 p-12 text-center">
+          <p className="text-gray-500 text-lg">No submissions yet for this task.</p>
+          <p className="text-gray-400 text-sm mt-2">Testers will appear here once they complete and submit their recordings.</p>
         </div>
       </div>
     )
@@ -80,12 +82,12 @@ export default async function DevTaskDetailPage({
   return (
     <div className="flex-1 p-6 max-w-6xl mx-auto">
       <div className="mb-6">
-        <Link href="/dev" className="text-gray-400 hover:text-white text-sm inline-flex items-center gap-2">
+        <Link href="/dev" className="text-gray-500 hover:text-gray-700 text-sm inline-flex items-center gap-2">
           <span>←</span> Back to Dashboard
         </Link>
         <div className="flex justify-between items-start mt-2">
-          <h1 className="text-2xl font-bold">{taskDisplay.title}</h1>
-          <span className="text-xl font-semibold text-green-400">${taskDisplay.budget}</span>
+          <h1 className="text-2xl font-bold text-gray-900">{taskDisplay.title}</h1>
+          <span className="text-xl font-semibold text-green-600">${taskDisplay.budget}</span>
         </div>
       </div>
 

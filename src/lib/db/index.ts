@@ -19,6 +19,12 @@ export const db = {
       requirements?: string[]
       steps?: string[]
       id?: string
+      companyName?: string | null
+      productName?: string | null
+      productTagline?: string | null
+      companyWebsite?: string | null
+      founderName?: string | null
+      companyDescription?: string | null
     }) {
       const supabase = await createClient()
       const instructions =
@@ -49,6 +55,12 @@ export const db = {
       if (data.about) payload.about = data.about
       if (data.requirements?.length) payload.requirements = data.requirements
       if (data.steps?.length) payload.steps = data.steps
+      if (data.companyName != null) payload.company_name = data.companyName
+      if (data.productName != null) payload.product_name = data.productName
+      if (data.productTagline != null) payload.product_tagline = data.productTagline
+      if (data.companyWebsite != null) payload.company_website = data.companyWebsite
+      if (data.founderName != null) payload.founder_name = data.founderName
+      if (data.companyDescription != null) payload.company_description = data.companyDescription
 
       const { data: task, error } = await supabase
         .from('tasks')

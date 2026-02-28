@@ -92,7 +92,7 @@ npm run dev
 ```
 
 1. **Supabase** – Create project; run migrations in `supabase/migrations/`; enable Google OAuth in Auth → Providers; add redirect URL `http://localhost:3000/auth/callback`.
-2. **Stripe** – Create checkout session; webhook URL `http://localhost:3000/api/stripe/webhook` (or use Stripe CLI for local: `stripe listen --forward-to localhost:3000/api/stripe/webhook`).
+2. **Stripe** – See [Stripe webhooks: dev vs prod](#stripe-webhooks-dev-vs-prod) below.
 
 ---
 
@@ -104,8 +104,23 @@ npm run dev
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Public anon key |
 | `SUPABASE_SERVICE_ROLE_KEY` | Service role for admin ops (profile role updates) |
 | `STRIPE_SECRET_KEY` | Stripe secret key |
-| `STRIPE_WEBHOOK_SECRET` | Webhook signing secret |
+| `STRIPE_WEBHOOK_SECRET` | Webhook signing secret (CLI secret for dev, Dashboard secret for prod) |
 | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Client-side Stripe key |
+
+---
+
+## Stripe webhooks: dev vs prod
+
+Stripe sends webhooks to a **public URL**. Localhost is not reachable from Stripe, so you need different setups:
+
+| Environment | How webhooks reach your app | `STRIPE_WEBHOOK_SECRET` |
+|-------------|----------------------------|--------------------------|
+| **Dev (localhost)** | Stripe CLI forwards events to localhost | Secret from `stripe listen` output |
+| **Prod** | Stripe sends directly to your domain | Secret from Dashboard → Webhooks → your endpoint |
+
+**Dev:** Run `stripe listen --forward-to localhost:3000/api/stripe/webhook` in a separate terminal. Use the `whsec_...` it prints in `.env.local`. Restart the CLI or change port? Update the secret.
+
+**Prod:** In [Stripe Dashboard → Webhooks](https://dashboard.stripe.com/webhooks), add endpoint `https://yourdomain.com/api/stripe/webhook`, select `checkout.session.completed`, and use that endpoint’s signing secret in your production env.
 
 ---
 

@@ -38,16 +38,13 @@ export default async function TaskBriefPage({
   const budget = Number(task.budget)
   const duration = task.estimated_duration_minutes ?? 5
   const difficulty = difficultyDisplayLabel(task.difficulty)
-  // Company & Product Info (with mock data fallback for visualization)
-  // TODO: Remove mock data once real data is available
-  const MOCK_MODE = true // Set to false when real data exists
-  
-  const companyName = task.company_name || (MOCK_MODE ? 'TechFlow Inc' : null)
-  const productName = task.product_name || (MOCK_MODE ? 'FlowDesk' : null)
-  const productTagline = task.product_tagline || (MOCK_MODE ? 'The all-in-one workspace for remote teams' : null)
-  const companyWebsite = task.company_website || (MOCK_MODE ? 'https://techflow.io' : null)
-  const founderName = task.founder_name || (MOCK_MODE ? 'Sarah Chen' : null)
-  const companyDescription = task.company_description || (MOCK_MODE ? 'We build productivity tools that help remote teams collaborate more effectively. Founded in 2023, we have helped over 10,000 teams improve their workflow.' : null)
+  // Company & Product Info (real data from task; no mock fallback)
+  const companyName = task.company_name ?? null
+  const productName = task.product_name ?? null
+  const productTagline = task.product_tagline ?? null
+  const companyWebsite = task.company_website ?? null
+  const founderName = task.founder_name ?? null
+  const companyDescription = task.company_description ?? null
 
   // Legacy task info (kept for reference if no company info)
   const about = task.about || task.instructions || 'No description provided.'
