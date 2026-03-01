@@ -207,14 +207,17 @@ IMPORTANT - Tone and format:
     throw new Error(`Invalid JSON from Gemini: ${(parseErr as Error).message}`)
   }
   
+  const num = (v: unknown): number => (typeof v === 'number' && !Number.isNaN(v) ? v : 0)
+  const arr = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [])
+  const relScore = num(analysis.relevanceScore)
   return {
-    relevanceScore: analysis.relevanceScore ?? (analysis.isLegitimate ? 100 : 0),
-    requirementsMet: analysis.requirementsMet ?? [],
-    requirementsMissed: analysis.requirementsMissed ?? [],
-    effortScore: analysis.effortScore ?? 0,
-    qualityScore: analysis.qualityScore ?? 0,
-    issues: analysis.issues ?? [],
-    summary: analysis.summary ?? 'No summary available',
+    relevanceScore: relScore > 0 ? relScore : (analysis.isLegitimate ? 100 : 0),
+    requirementsMet: arr(analysis.requirementsMet),
+    requirementsMissed: arr(analysis.requirementsMissed),
+    effortScore: num(analysis.effortScore),
+    qualityScore: num(analysis.qualityScore),
+    issues: arr(analysis.issues),
+    summary: typeof analysis.summary === 'string' ? analysis.summary : 'No summary available',
     analyzedAt: new Date().toISOString(),
     provider: 'gemini'
   }
@@ -286,15 +289,17 @@ Respond with exact JSON:
   }
 
   const analysis = JSON.parse(jsonMatch[0])
-  
+  const num = (v: unknown): number => (typeof v === 'number' && !Number.isNaN(v) ? v : 0)
+  const arr = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [])
+  const relScore = num(analysis.relevanceScore)
   return {
-    relevanceScore: analysis.relevanceScore ?? (analysis.isLegitimate ? 100 : 0),
-    requirementsMet: analysis.requirementsMet ?? [],
-    requirementsMissed: analysis.requirementsMissed ?? [],
-    effortScore: analysis.effortScore ?? 0,
-    qualityScore: analysis.qualityScore ?? 0,
-    issues: analysis.issues ?? [],
-    summary: analysis.summary ?? 'No summary available',
+    relevanceScore: relScore > 0 ? relScore : (analysis.isLegitimate ? 100 : 0),
+    requirementsMet: arr(analysis.requirementsMet),
+    requirementsMissed: arr(analysis.requirementsMissed),
+    effortScore: num(analysis.effortScore),
+    qualityScore: num(analysis.qualityScore),
+    issues: arr(analysis.issues),
+    summary: typeof analysis.summary === 'string' ? analysis.summary : 'No summary available',
     analyzedAt: new Date().toISOString(),
     provider: 'openai'
   }

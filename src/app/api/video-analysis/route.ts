@@ -54,7 +54,10 @@ export async function POST(request: NextRequest) {
       .from('submissions')
       .update({
         ai_analysis: {
-          isLegitimate: result.isLegitimate,
+          isLegitimate: result.relevanceScore >= 50,
+          relevanceScore: result.relevanceScore,
+          requirementsMet: result.requirementsMet,
+          requirementsMissed: result.requirementsMissed,
           effortScore: result.effortScore,
           qualityScore: result.qualityScore,
           issues: result.issues,

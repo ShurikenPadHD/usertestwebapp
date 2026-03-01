@@ -256,11 +256,11 @@ export default function SubmitPage() {
         <div>
           <h1 className="text-2xl md:text-3xl font-bold mb-3">{task?.title || 'User Test Submission'}</h1>
           <div className="flex flex-wrap items-center gap-2">
-            {task?.difficulty && <Badge variant="secondary" className="capitalize">{task.difficulty}</Badge>}
+            {task?.difficulty && <Badge variant="default" className="capitalize">{task.difficulty}</Badge>}
             {task?.estimated_duration_minutes && (
-              <Badge variant="secondary"><Clock className="w-3 h-3 mr-1" /> {task.estimated_duration_minutes} min</Badge>
+              <Badge variant="default"><Clock className="w-3 h-3 mr-1" /> {task.estimated_duration_minutes} min</Badge>
             )}
-            {task?.budget && <Badge variant="secondary" className="bg-green-500/20 text-green-400 border-green-500/30">${task.budget}</Badge>}
+            {task?.budget && <Badge variant="default" className="bg-green-500/20 text-green-400 border-green-500/30">${task.budget}</Badge>}
           </div>
         </div>
         
@@ -535,7 +535,7 @@ export default function SubmitPage() {
                       />
                     </div>
                     {durationDisplay && parseDurationToSeconds(durationDisplay) >= 180 && (
-                      <Badge variant="secondary" className="bg-green-500/20 text-green-400 border-green-500/30 shrink-0">
+                      <Badge variant="default" className="bg-green-500/20 text-green-400 border-green-500/30 shrink-0">
                         ✓ Valid Length
                       </Badge>
                     )}
