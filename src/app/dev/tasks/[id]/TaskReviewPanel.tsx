@@ -5,9 +5,9 @@ import { useRouter } from 'next/navigation'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
-import { VideoPlayer } from '@/components/ui/VideoPlayer'
 import { approveSubmission, rejectSubmission } from './actions'
-import { CheckCircle2, ShieldAlert, ShieldCheck, Flag, Brain, AlertCircle, X, Check, PlayCircle, AlertOctagon, AlertTriangle } from 'lucide-react'
+import { Flag, AlertCircle, X, Check, AlertOctagon, Sparkles, Loader2 } from 'lucide-react'
+import { VideoPlayer } from '@/components/ui/VideoPlayer'
 
 const statusColors: Record<string, string> = {
   pending: 'warning',
@@ -22,6 +22,79 @@ const REJECT_REASONS = [
   'Abusive/Spam',
   'Other'
 ]
+
+const MOCK_MINI_FUNNEL = [
+  { step: 'Créer un compte', status: 'completed' as const, timestamp: '01:10' },
+  { step: 'Ajouter au panier', status: 'completed' as const, timestamp: '03:45' },
+  { step: 'Utiliser le code promo', status: 'abandoned' as const },
+]
+
+interface InsightFinding {
+  dimension: string
+  dev_focus: string
+  severity: string
+  timestamp_sec: number
+  title: string
+  problem: string
+  impact: string
+  cause: string
+  recommendation: string
+}
+
+function InsightCard({
+  finding,
+  formatTimestamp,
+  variant,
+}: {
+  finding: InsightFinding
+  formatTimestamp: (sec: number) => string
+  variant: 'critical' | 'high' | 'medium' | 'low'
+}) {
+  const [expanded, setExpanded] = useState(false)
+  const colors = {
+    critical: 'border-red-500/20 bg-red-500/5 hover:bg-red-500/10 text-red-400',
+    high: 'border-orange-500/20 bg-orange-500/5 hover:bg-orange-500/10 text-orange-400',
+    medium: 'border-yellow-500/20 bg-yellow-500/5 hover:bg-yellow-500/10 text-yellow-400',
+    low: 'border-blue-500/20 bg-blue-500/5 hover:bg-blue-500/10 text-blue-400',
+  }
+  const ts = formatTimestamp(finding.timestamp_sec)
+  return (
+    <li
+      className={`p-3 rounded-lg border text-sm text-gray-300 cursor-pointer transition-colors ${colors[variant]}`}
+      onClick={() => setExpanded((e) => !e)}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <span className="font-mono shrink-0">[{ts}]</span>
+        <span className="font-medium">{finding.title || finding.problem}</span>
+      </div>
+      {finding.dimension && (
+        <p className="text-xs text-gray-500 mt-1">{finding.dimension}</p>
+      )}
+      {expanded && (
+        <div className="mt-3 pt-3 border-t border-white/10 space-y-2 text-xs">
+          <div>
+            <span className="text-gray-500">Problem:</span> {finding.problem}
+          </div>
+          {finding.impact && (
+            <div>
+              <span className="text-gray-500">Impact:</span> {finding.impact}
+            </div>
+          )}
+          {finding.cause && (
+            <div>
+              <span className="text-gray-500">Cause:</span> {finding.cause}
+            </div>
+          )}
+          {finding.recommendation && (
+            <div>
+              <span className="text-gray-500">Recommendation:</span> {finding.recommendation}
+            </div>
+          )}
+        </div>
+      )}
+    </li>
+  )
+}
 
 function StarRating({ value, max = 5, onChange }: { value: number; max?: number; onChange?: (v: number) => void }) {
   return (
@@ -61,6 +134,10 @@ interface Submission {
   status: 'pending' | 'approved' | 'rejected'
   videoUrl: string
   aiAnalysis?: AIAnalysis | null
+  insights?: {
+    findings: InsightFinding[]
+    analyzedAt: string
+  } | null
 }
 
 interface Task {
@@ -82,9 +159,14 @@ export function TaskReviewPanel({
   otherSubmissions: Submission[]
 }) {
   const router = useRouter()
+  const allSubmissions = [activeSubmission, ...otherSubmissions]
   const [selectedSubmission, setSelectedSubmission] = useState(activeSubmission)
+  const [submissionsWithInsights, setSubmissionsWithInsights] = useState<Map<string, Submission>>(
+    () => new Map(allSubmissions.map((s) => [s.id, s]))
+  )
   const [recentAction, setRecentAction] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [isGeneratingInsights, setIsGeneratingInsights] = useState(false)
   const [error, setError] = useState<string | null>(null)
   
   // Modals state
@@ -143,6 +225,42 @@ export function TaskReviewPanel({
     setShowRejectModal(false)
   }, [selectedSubmission.id])
 
+  useEffect(() => {
+    const next = [activeSubmission, ...otherSubmissions]
+    setSubmissionsWithInsights((prev) => {
+      const m = new Map(prev)
+      for (const s of next) m.set(s.id, s)
+      return m
+    })
+  }, [activeSubmission, otherSubmissions])
+
+  const handleGenerateInsights = async () => {
+    if (!selectedSubmission.videoUrl) return
+    setError(null)
+    setIsGeneratingInsights(true)
+    try {
+      const res = await fetch(`/api/submissions/${selectedSubmission.id}/insights`, {
+        method: 'POST',
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || 'Failed to generate insights')
+      }
+      const { findings, analyzedAt } = await res.json()
+      const updated: Submission = {
+        ...selectedSubmission,
+        insights: { findings, analyzedAt },
+      }
+      setSubmissionsWithInsights((prev) => new Map(prev).set(selectedSubmission.id, updated))
+      setSelectedSubmission(updated)
+      router.refresh()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to generate insights')
+    } finally {
+      setIsGeneratingInsights(false)
+    }
+  }
+
   const formatDuration = (secs: number) => {
     if (secs <= 0) return '0:00'
     const m = Math.floor(secs / 60)
@@ -151,202 +269,271 @@ export function TaskReviewPanel({
   }
 
   const ai = selectedSubmission.aiAnalysis
+  const insights = selectedSubmission.insights
+
+  const getYouTubeEmbedUrl = (url: string) => {
+    try {
+      if (url.includes('youtube.com/watch?v=')) {
+        const v = new URL(url).searchParams.get('v')
+        return v ? `https://www.youtube.com/embed/${v}` : null
+      }
+      if (url.includes('youtu.be/')) {
+        const id = url.split('youtu.be/')[1]?.split('?')[0]?.split('&')[0]
+        return id ? `https://www.youtube.com/embed/${id}` : null
+      }
+    } catch {
+      return null
+    }
+    return null
+  }
+
+  const videoEmbedUrl = selectedSubmission.videoUrl ? getYouTubeEmbedUrl(selectedSubmission.videoUrl) : null
+  const isYouTube = !!videoEmbedUrl
+
+  const formatTimestamp = (sec: number) => {
+    if (sec <= 0) return '--:--'
+    const m = Math.floor(sec / 60)
+    const s = Math.floor(sec % 60)
+    return `${m}:${s.toString().padStart(2, '0')}`
+  }
+
+  const findingsBySeverity = insights?.findings
+    ? {
+        critical: insights.findings.filter((f) => f.severity === 'critical'),
+        high: insights.findings.filter((f) => f.severity === 'high'),
+        medium: insights.findings.filter((f) => f.severity === 'medium'),
+        low: insights.findings.filter((f) => f.severity === 'low'),
+      }
+    : null
+
+  const hasFindings = findingsBySeverity
+    ? findingsBySeverity.critical.length +
+        findingsBySeverity.high.length +
+        findingsBySeverity.medium.length +
+        findingsBySeverity.low.length >
+      0
+    : false
+
+  // Mini-funnel: task.steps with mock status/timestamp, or full mock
+  const funnelSteps =
+    task.steps?.length
+      ? task.steps.map((step, i) => {
+          const mock = MOCK_MINI_FUNNEL[i]
+          const completedCount = ai?.requirementsMet.length ?? 0
+          const isCompleted = i < completedCount
+          return {
+            step,
+            status: (isCompleted ? 'completed' : (mock?.status ?? 'abandoned')) as 'completed' | 'abandoned',
+            timestamp: isCompleted ? (mock?.timestamp ?? '--:--') : undefined,
+          }
+        })
+      : MOCK_MINI_FUNNEL
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 lg:grid-cols-10 gap-6">
-        
-        {/* Left Side: Video Player & Raw Notes (60%) */}
-        <div className="lg:col-span-6 space-y-6">
-          <div className="rounded-xl overflow-hidden shadow-2xl border border-white/10 bg-black">
-            <VideoPlayer
-              src={selectedSubmission.videoUrl}
-              duration={selectedSubmission.duration}
-            />
+    <div className="space-y-8">
+      {/* 1. Top Action Bar — full width: tester + metrics + actions */}
+      <Card variant="glass" className="border-white/10 bg-[#1a1a1a]/80 backdrop-blur rounded-2xl p-6">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-3">
+              <h3 className="font-semibold text-lg text-white">{selectedSubmission.testerName}</h3>
+              <button className="text-gray-500 hover:text-red-400 transition-colors" title="Report abusive behavior">
+                <Flag className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-sm text-gray-500">
+              Submitted {selectedSubmission.submittedAt} • {formatDuration(selectedSubmission.duration)}
+            </p>
+            <Badge variant={statusColors[selectedSubmission.status] as 'warning' | 'success' | 'error' || 'default'}>
+              {selectedSubmission.status.charAt(0).toUpperCase() + selectedSubmission.status.slice(1)}
+            </Badge>
           </div>
 
-          {/* Raw Tester Notes */}
-          <div>
-            <h3 className="font-semibold text-lg mb-3">Tester Notes</h3>
-            {selectedSubmission.notes ? (
-              <Card variant="glass" className="border-white/10 p-5 bg-[#0a0a0a]">
-                <p className="text-gray-300 italic leading-relaxed">&quot;{selectedSubmission.notes}&quot;</p>
-              </Card>
-            ) : (
-              <p className="text-gray-500 italic text-sm">No notes provided by the tester.</p>
-            )}
-          </div>
-        </div>
-
-        {/* Right Side: Insight Command Center (40%) */}
-        <div className="lg:col-span-4 flex flex-col gap-6">
-          <Card variant="glass" className="flex flex-col h-[700px] border-white/10 shadow-2xl">
-            
-            {/* Header: Tester Profile & Status */}
-            <div className="p-5 border-b border-white/5 bg-white/[0.02]">
-              <div className="flex justify-between items-start">
-                <div>
-                  <div className="flex items-center gap-3 mb-1">
-                    <h3 className="font-semibold text-lg">{selectedSubmission.testerName}</h3>
-                    <button className="text-gray-500 hover:text-red-400 transition-colors" title="Report abusive behavior">
-                      <Flag className="w-4 h-4" />
-                    </button>
-                  </div>
-                  <p className="text-sm text-gray-500">
-                    Submitted {selectedSubmission.submittedAt} • {formatDuration(selectedSubmission.duration)}
-                  </p>
-                </div>
-                <Badge variant={statusColors[selectedSubmission.status] as 'warning' | 'success' | 'error' || 'default'}>
-                  {selectedSubmission.status.charAt(0).toUpperCase() + selectedSubmission.status.slice(1)}
-                </Badge>
-              </div>
+          {ai && (
+            <div className="flex flex-nowrap items-center gap-2 shrink-0">
+              <span className="text-xs text-gray-500 uppercase tracking-wider whitespace-nowrap">Scores</span>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 text-gray-300 text-sm font-normal whitespace-nowrap">
+                <span className="text-gray-500">Rel.</span> <strong className="text-white">{ai.relevanceScore}%</strong>
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 text-gray-300 text-sm font-normal whitespace-nowrap">
+                <span className="text-gray-500">Eff.</span> <strong className="text-white">{ai.effortScore}%</strong>
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 text-gray-300 text-sm font-normal whitespace-nowrap">
+                <span className="text-gray-500">Qual.</span> <strong className="text-white">{ai.qualityScore}%</strong>
+              </span>
             </div>
+          )}
 
-            {/* AI Insight Dashboard (Scrollable) */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar">
-              {ai ? (
-                <>
-                  {/* Feature 4.1: AI Executive Summary (TL;DR) */}
-                  <div className="p-5 border-b border-white/5">
-                    <h4 className="font-semibold text-xs text-gray-400 uppercase tracking-wider flex items-center gap-2 mb-4">
-                      <Brain className="w-4 h-4 text-purple-400" /> AI Executive Summary
-                    </h4>
-                    
-                    <div className="text-sm text-gray-300 space-y-3 mb-4">
-                      {/* TL;DR Bullets (derived from AI summary and analysis) */}
-                      <div className="flex items-start gap-2">
-                        <span className="text-blue-400 mt-1">•</span>
-                        <p>{ai.summary}</p>
-                      </div>
-                      <div className="flex items-start gap-2">
-                        <span className="text-blue-400 mt-1">•</span>
-                        <p>Completed {ai.requirementsMet.length} of {ai.requirementsMet.length + ai.requirementsMissed.length} designated task steps.</p>
-                      </div>
-                      {ai.issues.length > 0 && (
-                        <div className="flex items-start gap-2">
-                          <span className="text-red-400 mt-1">•</span>
-                          <p>Encountered {ai.issues.length} critical issues/errors during the test.</p>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex flex-wrap gap-2 mt-4">
-                      <Badge variant="secondary" className="bg-white/5 text-gray-300 font-normal">Relevance: <strong className="ml-1 text-white">{ai.relevanceScore}%</strong></Badge>
-                      <Badge variant="secondary" className="bg-white/5 text-gray-300 font-normal">Effort: <strong className="ml-1 text-white">{ai.effortScore}%</strong></Badge>
-                      <Badge variant="secondary" className="bg-white/5 text-gray-300 font-normal">Quality: <strong className="ml-1 text-white">{ai.qualityScore}%</strong></Badge>
-                    </div>
-                  </div>
-
-                  {/* Feature 4.3: The Highlight Reel */}
-                  <div className="p-5">
-                    <h4 className="font-semibold text-xs text-gray-400 uppercase tracking-wider flex items-center gap-2 mb-4">
-                      <PlayCircle className="w-4 h-4 text-blue-400" /> Highlight Reel (Events)
-                    </h4>
-                    
-                    <div className="space-y-3">
-                      
-                      {/* Critical Issues */}
-                      {ai.issues.map((issue, i) => (
-                        <div key={`issue-${i}`} className="p-3 rounded-lg border border-red-500/20 bg-red-500/5 hover:bg-red-500/10 cursor-pointer transition-colors group">
-                          <div className="flex items-start gap-3">
-                            <AlertOctagon className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
-                            <div>
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className="text-xs font-bold text-red-400 uppercase">Critical</span>
-                                <span className="text-xs text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity">▶ Click to play clip</span>
-                              </div>
-                              <p className="text-sm text-gray-300">{issue}</p>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-
-                      {/* UX Friction */}
-                      {ai.requirementsMissed.map((req, i) => (
-                        <div key={`miss-${i}`} className="p-3 rounded-lg border border-yellow-500/20 bg-yellow-500/5 hover:bg-yellow-500/10 cursor-pointer transition-colors group">
-                          <div className="flex items-start gap-3">
-                            <AlertTriangle className="w-5 h-5 text-yellow-400 shrink-0 mt-0.5" />
-                            <div>
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className="text-xs font-bold text-yellow-400 uppercase">Friction / Missed</span>
-                                <span className="text-xs text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity">▶ Click to play clip</span>
-                              </div>
-                              <p className="text-sm text-gray-300">Missed step: {req}</p>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-
-                      {/* Task Progress / Success */}
-                      {ai.requirementsMet.map((req, i) => (
-                        <div key={`met-${i}`} className="p-3 rounded-lg border border-green-500/20 bg-green-500/5 hover:bg-green-500/10 cursor-pointer transition-colors group">
-                          <div className="flex items-start gap-3">
-                            <CheckCircle2 className="w-5 h-5 text-green-400 shrink-0 mt-0.5" />
-                            <div>
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className="text-xs font-bold text-green-400 uppercase">Success</span>
-                                <span className="text-xs text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity">▶ Click to play clip</span>
-                              </div>
-                              <p className="text-sm text-gray-300">Completed: {req}</p>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-
-                      {/* Empty state if AI found literally nothing to report */}
-                      {ai.issues.length === 0 && ai.requirementsMissed.length === 0 && ai.requirementsMet.length === 0 && (
-                         <p className="text-sm text-gray-500 text-center py-4">No specific timeline events detected.</p>
-                      )}
-
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <div className="p-8 text-center h-full flex flex-col items-center justify-center">
-                  <Brain className="w-12 h-12 text-gray-600 mb-4" />
-                  <p className="text-gray-400 font-medium mb-1">AI Processing Pending</p>
-                  <p className="text-sm text-gray-500">The video is being processed or AI was unavailable during submission.</p>
-                </div>
-              )}
-            </div>
-
-            {/* Feature 4.4: Approval/Rejection Sticky Footer */}
+          <div className="flex items-center gap-3 shrink-0">
             {selectedSubmission.status === 'pending' ? (
-              <div className="p-5 border-t border-white/10 bg-[#0f0f0f] shrink-0">
-                {error && <p className="mb-3 text-sm text-red-400 flex items-center gap-2"><AlertCircle className="w-4 h-4"/> {error}</p>}
-                <div className="flex gap-3">
-                  <Button 
-                    variant="danger" 
-                    className="flex-1 bg-transparent hover:bg-red-500/10 text-red-400 border border-red-500/30 transition-all"
-                    onClick={() => setShowRejectModal(true)}
-                  >
-                    <X className="w-4 h-4 mr-2" /> Reject
-                  </Button>
-                  <Button 
-                    className="flex-1 bg-blue-600 hover:bg-blue-500 text-white shadow-[0_0_20px_rgba(37,99,235,0.3)] transition-all"
-                    onClick={() => setShowApproveModal(true)}
-                  >
-                    <Check className="w-4 h-4 mr-2" /> Approve & Pay
-                  </Button>
-                </div>
-              </div>
+              <>
+                {error && (
+                  <p className="text-sm text-red-400 flex items-center gap-2 mr-2">
+                    <AlertCircle className="w-4 h-4" /> {error}
+                  </p>
+                )}
+                <Button
+                  variant="danger"
+                  className="bg-transparent hover:bg-red-500/10 text-red-400 border border-red-500/30 transition-all"
+                  onClick={() => setShowRejectModal(true)}
+                >
+                  <X className="w-4 h-4 mr-2" /> Reject
+                </Button>
+                <Button
+                  className="bg-blue-600 hover:bg-blue-500 text-white shadow-[0_0_20px_rgba(37,99,235,0.3)] transition-all"
+                  onClick={() => setShowApproveModal(true)}
+                >
+                  <Check className="w-4 h-4 mr-2" /> Approve & Pay
+                </Button>
+              </>
             ) : (
-              <div className="p-5 border-t border-white/10 bg-[#0f0f0f] shrink-0 text-center">
+              <div className="flex flex-col items-end gap-1">
                 {selectedSubmission.rating > 0 && (
-                  <div className="flex flex-col items-center justify-center gap-2">
-                    <span className="text-sm text-gray-400">You rated this tester:</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-400">Rated:</span>
                     <StarRating value={selectedSubmission.rating} />
                   </div>
                 )}
                 {recentAction && (
-                  <p className={`mt-2 text-sm font-medium ${recentAction === 'approved' ? 'text-green-400' : 'text-red-400'}`}>
+                  <p className={`text-sm font-medium ${recentAction === 'approved' ? 'text-green-400' : 'text-red-400'}`}>
                     Submission {recentAction}
                   </p>
                 )}
               </div>
             )}
-          </Card>
+          </div>
         </div>
+      </Card>
+
+      {/* Video — between top bar and Findings */}
+      {selectedSubmission.videoUrl ? (
+        isYouTube ? (
+          <Card variant="glass" className="border-white/5 bg-[#1a1a1a]/80 backdrop-blur rounded-2xl overflow-hidden p-0">
+            <div className="relative aspect-video bg-[#0a0a0a]">
+              <iframe
+                src={videoEmbedUrl!}
+                title="Submitted video"
+                className="absolute inset-0 w-full h-full"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            </div>
+          </Card>
+        ) : (
+          <VideoPlayer
+            src={selectedSubmission.videoUrl}
+            duration={selectedSubmission.duration}
+          />
+        )
+      ) : (
+        <Card variant="glass" className="border-white/5 bg-[#1a1a1a]/80 backdrop-blur rounded-2xl p-8">
+          <div className="aspect-video bg-[#0a0a0a] rounded-lg flex items-center justify-center text-gray-500 text-sm">
+            No video URL available.
+          </div>
+        </Card>
+      )}
+
+      {/* Main: Findings + Mini-Funnel (full width) */}
+      <div className="space-y-6">
+          {/* Bloc 2: Findings Matrix (RITE structure from insights analysis) */}
+          <Card variant="glass" className="border-white/5 bg-[#1a1a1a]/80 backdrop-blur rounded-2xl p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="font-semibold text-xs text-gray-400 uppercase tracking-wider">Findings priorisés</h4>
+              {!insights && selectedSubmission.videoUrl && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="gap-2"
+                  onClick={handleGenerateInsights}
+                  disabled={isGeneratingInsights}
+                >
+                  {isGeneratingInsights ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" /> Generating…
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-4 h-4" /> Generate insights
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
+            <div className="space-y-4">
+              {hasFindings && findingsBySeverity ? (
+                <>
+                  {findingsBySeverity.critical.length > 0 && (
+                    <div>
+                      <p className="text-xs font-bold text-red-400 uppercase mb-2">Critical (Bugs & bloquants)</p>
+                      <ul className="space-y-3">
+                        {findingsBySeverity.critical.map((f, i) => (
+                          <InsightCard key={i} finding={f} formatTimestamp={formatTimestamp} variant="critical" />
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {findingsBySeverity.high.length > 0 && (
+                    <div>
+                      <p className="text-xs font-bold text-orange-400 uppercase mb-2">High (UX Friction & confusion)</p>
+                      <ul className="space-y-3">
+                        {findingsBySeverity.high.map((f, i) => (
+                          <InsightCard key={i} finding={f} formatTimestamp={formatTimestamp} variant="high" />
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {findingsBySeverity.medium.length > 0 && (
+                    <div>
+                      <p className="text-xs font-bold text-yellow-400 uppercase mb-2">Medium (Inefficiency)</p>
+                      <ul className="space-y-3">
+                        {findingsBySeverity.medium.map((f, i) => (
+                          <InsightCard key={i} finding={f} formatTimestamp={formatTimestamp} variant="medium" />
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {findingsBySeverity.low.length > 0 && (
+                    <div>
+                      <p className="text-xs font-bold text-blue-400 uppercase mb-2">Low (Suggestions)</p>
+                      <ul className="space-y-3">
+                        {findingsBySeverity.low.map((f, i) => (
+                          <InsightCard key={i} finding={f} formatTimestamp={formatTimestamp} variant="low" />
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </>
+              ) : insights && !hasFindings ? (
+                <p className="text-sm text-gray-500 text-center py-4">No issues detected in this session.</p>
+              ) : !insights ? (
+                <p className="text-sm text-gray-500 text-center py-4">
+                  Click &quot;Generate insights&quot; to analyze this video for product and UX findings.
+                </p>
+              ) : null}
+              {error && (
+                <p className="text-sm text-red-400 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" /> {error}
+                </p>
+              )}
+            </div>
+          </Card>
+
+          {/* Bloc 4: Mini-Funnel (Task Breakdown) */}
+          <Card variant="glass" className="border-white/5 bg-[#1a1a1a]/80 backdrop-blur rounded-2xl p-6">
+            <h4 className="font-semibold text-xs text-gray-400 uppercase tracking-wider mb-4">Mini-Funnel (étapes)</h4>
+            <ul className="space-y-3">
+              {funnelSteps.map((item, i) => (
+                <li key={i} className="flex items-center justify-between text-sm">
+                  <span className="text-gray-300">{item.step}</span>
+                  {item.status === 'completed' ? (
+                    <span className="text-green-400">✅ [{(item as { step: string; status: 'completed'; timestamp?: string }).timestamp ?? '--:--'}]</span>
+                  ) : (
+                    <span className="text-red-400">❌ Abandonné</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </Card>
       </div>
 
       {/* Other Submissions Navigation */}
@@ -358,7 +545,7 @@ export function TaskReviewPanel({
               <button
                 key={sub.id}
                 type="button"
-                onClick={() => setSelectedSubmission(sub)}
+                onClick={() => setSelectedSubmission(submissionsWithInsights.get(sub.id) ?? sub)}
                 className={`text-left p-4 rounded-xl border transition-all flex flex-col gap-2 ${
                   selectedSubmission.id === sub.id
                     ? 'bg-blue-900/20 border-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.15)]'

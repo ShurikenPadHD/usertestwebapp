@@ -23,6 +23,12 @@ export default async function DevTaskDetailPage({
   if (task.developer_id !== user.id) notFound()
 
   const submissions = await db.submissions.findByTask(params.id)
+  const insightsList = await db.submissionInsights.findBySubmissionIds(
+    submissions.map((s) => s.id)
+  )
+  const insightsBySubmission = Object.fromEntries(
+    insightsList.map((i) => [i.submission_id, i])
+  )
 
   const testerIds = Array.from(new Set(submissions.map((s) => s.tester_id)))
   const profiles = await db.profiles.findByIds(testerIds)
@@ -33,6 +39,7 @@ export default async function DevTaskDetailPage({
     const name = p
       ? [p.first_name, p.last_name].filter(Boolean).join(' ') || p.email || 'Tester'
       : 'Tester'
+    const insights = insightsBySubmission[s.id]
     return {
       id: s.id,
       testerName: name,
@@ -43,6 +50,22 @@ export default async function DevTaskDetailPage({
       status: s.status as 'pending' | 'approved' | 'rejected',
       videoUrl: s.video_url ?? '',
       aiAnalysis: s.ai_analysis ?? null,
+      insights: insights
+        ? {
+            findings: insights.findings as Array<{
+              dimension: string
+              dev_focus: string
+              severity: string
+              timestamp_sec: number
+              title: string
+              problem: string
+              impact: string
+              cause: string
+              recommendation: string
+            }>,
+            analyzedAt: insights.analyzed_at,
+          }
+        : null,
     }
   })
 
@@ -63,17 +86,17 @@ export default async function DevTaskDetailPage({
     return (
       <div className="flex-1 p-6 max-w-6xl mx-auto">
         <div className="mb-6">
-          <Link href="/dev" className="text-gray-500 hover:text-gray-700 text-sm inline-flex items-center gap-2">
+          <Link href="/dev" className="text-gray-500 hover:text-white text-sm inline-flex items-center gap-2 transition-colors">
             <span>←</span> Back to Dashboard
           </Link>
           <div className="flex justify-between items-start mt-4">
-            <h1 className="text-2xl font-bold text-gray-900">{taskDisplay.title}</h1>
-            <span className="text-xl font-semibold text-green-600">${taskDisplay.budget}</span>
+            <h1 className="text-2xl font-bold text-white">{taskDisplay.title}</h1>
+            <span className="text-xl font-semibold text-green-400">${taskDisplay.budget}</span>
           </div>
         </div>
-        <div className="rounded-xl border border-gray-200 bg-gray-50 p-12 text-center">
-          <p className="text-gray-500 text-lg">No submissions yet for this task.</p>
-          <p className="text-gray-400 text-sm mt-2">Testers will appear here once they complete and submit their recordings.</p>
+        <div className="rounded-xl border border-white/10 bg-[#1a1a1a]/80 backdrop-blur-xl p-12 text-center">
+          <p className="text-gray-400 text-lg">No submissions yet for this task.</p>
+          <p className="text-gray-500 text-sm mt-2">Testers will appear here once they complete and submit their recordings.</p>
         </div>
       </div>
     )
@@ -82,12 +105,12 @@ export default async function DevTaskDetailPage({
   return (
     <div className="flex-1 p-6 max-w-6xl mx-auto">
       <div className="mb-6">
-        <Link href="/dev" className="text-gray-500 hover:text-gray-700 text-sm inline-flex items-center gap-2">
+        <Link href="/dev" className="text-gray-500 hover:text-white text-sm inline-flex items-center gap-2 transition-colors">
           <span>←</span> Back to Dashboard
         </Link>
         <div className="flex justify-between items-start mt-2">
-          <h1 className="text-2xl font-bold text-gray-900">{taskDisplay.title}</h1>
-          <span className="text-xl font-semibold text-green-600">${taskDisplay.budget}</span>
+          <h1 className="text-2xl font-bold text-white">{taskDisplay.title}</h1>
+          <span className="text-xl font-semibold text-green-400">${taskDisplay.budget}</span>
         </div>
       </div>
 

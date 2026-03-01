@@ -302,6 +302,49 @@ export const db = {
     },
   },
 
+  submissionInsights: {
+    async findBySubmission(submissionId: string) {
+      const supabase = await createClient()
+      const { data, error } = await supabase
+        .from('submission_insights')
+        .select('*')
+        .eq('submission_id', submissionId)
+        .maybeSingle()
+      if (error) throw error
+      return data
+    },
+
+    async findBySubmissionIds(submissionIds: string[]) {
+      if (submissionIds.length === 0) return []
+      const supabase = await createClient()
+      const { data, error } = await supabase
+        .from('submission_insights')
+        .select('*')
+        .in('submission_id', submissionIds)
+      if (error) throw error
+      return data ?? []
+    },
+
+    async upsert(submissionId: string, findings: unknown[], provider?: string) {
+      const supabase = await createClient()
+      const { data, error } = await supabase
+        .from('submission_insights')
+        .upsert(
+          {
+            submission_id: submissionId,
+            findings,
+            provider: provider ?? null,
+            analyzed_at: new Date().toISOString(),
+          },
+          { onConflict: 'submission_id' }
+        )
+        .select()
+        .single()
+      if (error) throw error
+      return data
+    },
+  },
+
   profiles: {
     async findByIds(ids: string[]) {
       if (ids.length === 0) return []
