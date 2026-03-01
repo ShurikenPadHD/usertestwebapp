@@ -1,0 +1,250 @@
+
+
+⸻
+
+Component: SignalDrawer
+
+Purpose:
+Allow deep exploration of a single Signal Pile without polluting the main Signal View.
+
+Mental model:
+Surface = Radar
+Drawer = Microscope
+
+⸻
+
+1️⃣ Trigger Behavior
+
+Interaction
+	•	Click anywhere on a SignalPile (pas sur un sous-élément spécifique)
+	•	Drawer slides from right
+	•	Background content remains visible but dimmed (existing overlay token)
+	•	Selected pile stays visually highlighted
+
+⸻
+
+2️⃣ Layout Structure
+
+|---------------- Main View ---------------|   |----- Drawer -----|
+                                                  Header
+                                                  Tab Selector
+                                                  Content Area
+                                                  Evidence Block
+
+Width:
+	•	40%–45% viewport desktop
+	•	Fullscreen on mobile
+	•	Max-width cap (ex: 720px) pour éviter lignes trop longues
+
+⸻
+
+3️⃣ Drawer Header
+
+A. Signal Title
+
+Same as pile title.
+Use existing H2 or H3 large style.
+
+Example:
+Listing Initiation Friction
+
+Under it (meta row):
+	•	Signal strength badge
+	•	Affected feature tag
+	•	Convergence count
+
+Same design tokens as main view.
+
+Spacing:
+16px bottom before tabs.
+
+⸻
+
+4️⃣ Tab Selector (Core Interaction)
+
+Position:
+Directly under header.
+
+Style:
+Use existing segmented control or tab component.
+
+Tabs:
+	•	Problem
+	•	Impact
+	•	Cause
+	•	Realignment
+
+Rules:
+	•	Only one active at a time
+	•	Active tab uses system primary state
+	•	Others neutral
+
+Interaction:
+	•	Click tab → content animates (slide transition)
+	•	Swipe right/left (trackpad or mobile) → navigates between tabs
+	•	Keep animation subtle (200–300ms max)
+	•	Directional slide:
+	•	Going right → content slides left
+	•	Going left → content slides right
+
+This reinforces the pathway logic.
+
+⸻
+
+5️⃣ Content Area
+
+This is the core reading area.
+
+Layout:
+Single column.
+Generous padding (24–32px).
+Max readable line width (60–75 characters).
+
+⸻
+
+Each Tab Content Structure
+
+A. Section Label (small overline)
+
+Example:
+PROBLEM
+
+Use existing label/overline typography.
+
+⸻
+
+B. Main Text Block
+
+This is the expanded RITE text.
+No truncation here.
+
+Max:
+	•	3–6 sentences
+	•	Avoid long academic paragraphs
+
+This should feel strategic, not verbose.
+
+⸻
+
+C. Optional Structured Sub-blocks
+
+Depending on tab:
+
+If Problem:
+	•	User expectation (short line)
+	•	Observed behavior (short line)
+
+If Impact:
+	•	Affected feature
+	•	Business risk (qualitative)
+
+If Cause:
+	•	UI factor
+	•	Structural factor
+
+If Realignment:
+	•	Proposed direction
+	•	Implementation level (UI / structural / strategic)
+
+Keep them minimal.
+
+⸻
+
+6️⃣ Evidence Block (Below Main Content)
+
+Divider line (existing subtle border token).
+
+Title:
+Supporting Evidence
+
+Contains:
+	•	Timestamps (clickable)
+	•	Short quotes
+	•	Link to video jump (if available)
+
+Each evidence item:
+Small card or row format.
+
+Example:
+
+[4:57]
+“I don’t see where to list an item…”
+
+Clickable → jumps to that timestamp.
+
+This reinforces trust.
+
+⸻
+
+7️⃣ Navigation UX Details
+
+Keyboard Support
+	•	Arrow Right → next tab
+	•	Arrow Left → previous tab
+	•	ESC → close drawer
+
+Close Behavior
+	•	Close icon top right
+	•	Clicking overlay closes
+	•	Preserve scroll position in main view
+
+⸻
+
+8️⃣ Visual Hierarchy Priorities
+
+Inside drawer:
+	1.	Signal title
+	2.	Active tab content
+	3.	Evidence
+
+Do not:
+	•	Overemphasize tags
+	•	Add decorative UI
+	•	Introduce new color accents
+
+The drawer should feel calm and analytical.
+
+⸻
+
+9️⃣ State Persistence
+
+If user switches tab → closes drawer → reopens same pile:
+
+You can either:
+	•	Reset to Problem (recommended for clarity)
+OR
+	•	Remember last tab state (advanced behavior)
+
+I recommend reset to Problem for predictability.
+
+⸻
+
+10️⃣ Critical UX Principle
+
+The drawer must:
+	•	Feel like depth
+	•	Not like another page
+	•	Not like a report
+	•	Not like documentation
+
+It is a focused signal dissection.
+
+One signal.
+Four lenses.
+Evidence below.
+
+⸻
+
+11️⃣ What This Achieves Strategically
+
+Now your system becomes:
+
+Main View → Where misalignment exists
+Drawer → Why it exists and how to realign
+
+You preserve:
+	•	Signal compression
+	•	Strategic readability
+	•	Methodology integrity
+	•	Product credibility
+

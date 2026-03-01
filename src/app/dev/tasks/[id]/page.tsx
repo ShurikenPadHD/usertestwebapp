@@ -84,7 +84,7 @@ export default async function DevTaskDetailPage({
 
   if (submissions.length === 0) {
     return (
-      <div className="flex-1 p-6 max-w-6xl mx-auto">
+      <div className="flex-1 p-6 pl-0 max-w-6xl">
         <div className="mb-6">
           <Link href="/dev" className="text-gray-500 hover:text-white text-sm inline-flex items-center gap-2 transition-colors">
             <span>←</span> Back to Dashboard
@@ -103,7 +103,7 @@ export default async function DevTaskDetailPage({
   }
 
   return (
-    <div className="flex-1 p-6 max-w-6xl mx-auto">
+    <div className="flex-1 p-6 pl-0 max-w-6xl">
       <div className="mb-6">
         <Link href="/dev" className="text-gray-500 hover:text-white text-sm inline-flex items-center gap-2 transition-colors">
           <span>←</span> Back to Dashboard

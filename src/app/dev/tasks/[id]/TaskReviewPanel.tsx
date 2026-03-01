@@ -1,13 +1,15 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { approveSubmission, rejectSubmission } from './actions'
-import { Flag, AlertCircle, X, Check, AlertOctagon, Sparkles, Loader2 } from 'lucide-react'
+import { Flag, AlertCircle, X, Check, AlertOctagon, Sparkles, Loader2, ArrowRight, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react'
 import { VideoPlayer } from '@/components/ui/VideoPlayer'
+import { YouTubeEmbed } from '@/components/ui/YouTubeEmbed'
 
 const statusColors: Record<string, string> = {
   pending: 'warning',
@@ -21,12 +23,6 @@ const REJECT_REASONS = [
   'No Audio / Broken Video',
   'Abusive/Spam',
   'Other'
-]
-
-const MOCK_MINI_FUNNEL = [
-  { step: 'Créer un compte', status: 'completed' as const, timestamp: '01:10' },
-  { step: 'Ajouter au panier', status: 'completed' as const, timestamp: '03:45' },
-  { step: 'Utiliser le code promo', status: 'abandoned' as const },
 ]
 
 interface InsightFinding {
@@ -60,7 +56,7 @@ function InsightCard({
   const ts = formatTimestamp(finding.timestamp_sec)
   return (
     <li
-      className={`p-3 rounded-lg border text-sm text-gray-300 cursor-pointer transition-colors ${colors[variant]}`}
+      className={`p-3 rounded-lg border text-sm text-gray-400 cursor-pointer transition-colors ${colors[variant]}`}
       onClick={() => setExpanded((e) => !e)}
     >
       <div className="flex items-start justify-between gap-2">
@@ -96,6 +92,236 @@ function InsightCard({
   )
 }
 
+function SignalPile({
+  finding,
+  formatTimestamp,
+  onClick,
+  isSelected = false,
+}: {
+  finding: InsightFinding
+  formatTimestamp: (sec: number) => string
+  onClick?: () => void
+  isSelected?: boolean
+}) {
+  const severityConfig = {
+    critical: { label: 'Critical', stroke: 'border-red-500', bg: 'bg-red-500/20', text: 'text-red-400' },
+    high: { label: 'High', stroke: 'border-orange-500', bg: 'bg-orange-500/20', text: 'text-orange-400' },
+    medium: { label: 'Medium', stroke: 'border-yellow-500', bg: 'bg-yellow-500/20', text: 'text-yellow-400' },
+    low: { label: 'Low', stroke: 'border-blue-500', bg: 'bg-blue-500/20', text: 'text-blue-400' },
+  }
+  const config = severityConfig[finding.severity as keyof typeof severityConfig] || severityConfig.medium
+
+  // Selected state: stronger border, background tint, subtle glow
+  const selectedClass = isSelected 
+    ? `border-2 ${config.stroke} bg-white/[0.06] shadow-[0_0_20px_rgba(59,130,246,0.15)]` 
+    : `border border-white/10 hover:border-white/20 bg-white/[0.02]`
+
+  return (
+    <div 
+      onClick={onClick}
+      className={`${selectedClass} rounded-xl p-4 cursor-pointer hover:bg-white/[0.04] transition-all`}>
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex-1 min-w-0">
+          <h4 className="text-base font-semibold text-white truncate">{finding.title || 'Signal'}</h4>
+          {/* 1.1 Strategic Micro-Context - secondary line */}
+          {finding.dimension && (
+            <p className={`text-sm truncate mt-1 ${config.text}`}>
+              → {finding.dimension}
+            </p>
+          )}
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${config.bg} ${config.text}`}>
+            {config.label}
+          </span>
+          <span className="text-xs text-gray-500 font-mono">{formatTimestamp(finding.timestamp_sec)}</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function SignalDrawer({
+  finding,
+  isOpen,
+  onClose,
+  activeTab,
+  onTabChange,
+  formatTimestamp,
+  onJumpToMoment,
+}: {
+  finding: InsightFinding
+  isOpen: boolean
+  onClose: () => void
+  activeTab: 'problem' | 'impact' | 'cause' | 'realignment'
+  onTabChange: (tab: 'problem' | 'impact' | 'cause' | 'realignment') => void
+  formatTimestamp: (sec: number) => string
+  onJumpToMoment?: (seconds: number) => void
+}) {
+  const tabs = [
+    { id: 'problem' as const, label: 'Problem' },
+    { id: 'impact' as const, label: 'Impact' },
+    { id: 'cause' as const, label: 'Cause' },
+    { id: 'realignment' as const, label: 'Realignment' },
+  ]
+
+  const severityConfig = {
+    critical: { label: 'Critical', accent: 'border-l-red-500', bg: 'bg-red-500/20', text: 'text-red-400' },
+    high: { label: 'High', accent: 'border-l-orange-500', bg: 'bg-orange-500/20', text: 'text-orange-400' },
+    medium: { label: 'Medium', accent: 'border-l-yellow-500', bg: 'bg-yellow-500/20', text: 'text-yellow-400' },
+    low: { label: 'Low', accent: 'border-l-blue-500', bg: 'bg-blue-500/20', text: 'text-blue-400' },
+  }
+  const config = severityConfig[finding.severity as keyof typeof severityConfig] || severityConfig.medium
+
+  // Handle keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!isOpen) return
+      const currentIndex = tabs.findIndex(t => t.id === activeTab)
+      if (e.key === 'ArrowRight' && currentIndex < tabs.length - 1) {
+        onTabChange(tabs[currentIndex + 1].id)
+      } else if (e.key === 'ArrowLeft' && currentIndex > 0) {
+        onTabChange(tabs[currentIndex - 1].id)
+      } else if (e.key === 'Escape') {
+        onClose()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isOpen, activeTab, onTabChange, onClose])
+
+  // 3.1 "Why This Matters" content for each tab
+  const whyThisMatters = {
+    problem: "This directly blocks users from completing core actions, increasing abandonment rates.",
+    impact: "Affects user trust and perceived product quality at a critical moment.",
+    cause: "Understanding the root cause prevents recurrence and guides systematic fixes.",
+    realignment: "Clear direction enables efficient implementation and measurable improvement.",
+  }
+
+  const tabContent = {
+    problem: finding.problem,
+    impact: finding.impact,
+    cause: finding.cause,
+    realignment: finding.recommendation,
+  }
+
+  if (!isOpen) return null
+
+  const drawerContent = (
+    <div 
+      className="fixed right-0 top-0 h-full w-[45%] max-w-[640px] z-50 bg-[#0a0a0a] border-l border-white/10 shadow-2xl overflow-y-auto rounded-l-2xl animate-in slide-in-from-right duration-300"
+    >
+      {/* Header - 2.1 Increased Visual Hierarchy */}
+      <div className={`p-8 border-l-4 ${config.accent}`}>
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              {/* 2.1 Larger title with more weight */}
+              <h2 className="text-3xl font-bold text-white leading-tight">{finding.title || 'Signal'}</h2>
+              
+              {/* 2.1 Tighter meta row with more spacing below */}
+              <div className="flex flex-wrap items-center gap-3 mt-4">
+                <span className={`inline-flex items-center px-3 py-1 rounded text-xs font-semibold ${config.bg} ${config.text}`}>
+                  {config.label}
+                </span>
+                {finding.dimension && (
+                  <span className="inline-flex items-center px-3 py-1 rounded text-xs bg-white/5 text-gray-300 border border-white/10">
+                    {finding.dimension}
+                  </span>
+                )}
+                <span className="inline-flex items-center gap-2">
+                  <span className="text-sm text-gray-400 font-mono">{formatTimestamp(finding.timestamp_sec)}</span>
+                  <button
+                    type="button"
+                    onClick={() => onJumpToMoment?.(finding.timestamp_sec)}
+                    className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1 transition-colors"
+                  >
+                    <ExternalLink className="w-3 h-3" /> Jump to moment
+                  </button>
+                </span>
+              </div>
+            </div>
+            <button 
+              onClick={onClose}
+              className="p-2 text-gray-500 hover:text-white transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* 2.2 Strategic Lens - Classification Rationale */}
+          {finding.dimension && (
+            <div className="mt-6 pt-4 border-t border-white/5">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Strategic Lens</p>
+              <p className="text-sm text-gray-400">
+                Classified as <span className="text-white font-medium">{finding.dimension}</span> — impacts core user journey at a high-visibility touchpoint.
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Tab Selector - 2.1 Better visual anchoring */}
+        <div className="flex border-b border-white/10 bg-white/[0.02]">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => onTabChange(tab.id)}
+              className={`flex-1 py-4 text-sm font-medium transition-colors ${
+                activeTab === tab.id 
+                  ? 'text-blue-400 border-b-2 border-blue-400 bg-[#0a0a0a]' 
+                  : 'text-gray-400 hover:text-white hover:bg-white/[0.02]'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Content Area - 3.1 & 3.2 With "Why This Matters" */}
+        <div className="p-8">
+          <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-4">
+            {tabs.find(t => t.id === activeTab)?.label.toUpperCase()}
+          </p>
+          
+          {/* Main text - limited to 5-6 lines max */}
+          <p className="text-lg text-gray-200 leading-relaxed whitespace-pre-wrap max-w-prose">
+            {tabContent[activeTab] || '—'}
+          </p>
+
+          {/* 3.1 Why This Matters - strategic implication */}
+          <div className="mt-6 p-4 rounded-lg bg-white/[0.03] border border-white/5">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Why this matters</p>
+            <p className="text-sm text-gray-400">
+              {whyThisMatters[activeTab]}
+            </p>
+          </div>
+
+          {/* 5. Signal Strength Rationale */}
+          <div className="mt-8 pt-6 border-t border-white/10">
+            <h4 className="text-sm font-semibold text-gray-300 mb-3">Why {config.label} Severity</h4>
+            <ul className="space-y-2">
+              <li className="flex items-start gap-2 text-sm text-gray-400">
+                <span className={`w-1.5 h-1.5 rounded-full mt-1.5 ${config.bg.replace('/20', '')}`}></span>
+                Blocks critical user action in primary flow
+              </li>
+              <li className="flex items-start gap-2 text-sm text-gray-400">
+                <span className={`w-1.5 h-1.5 rounded-full mt-1.5 ${config.bg.replace('/20', '')}`}></span>
+                High-frequency occurrence across sessions
+              </li>
+              <li className="flex items-start gap-2 text-sm text-gray-400">
+                <span className={`w-1.5 h-1.5 rounded-full mt-1.5 ${config.bg.replace('/20', '')}`}></span>
+                Early in the user journey amplifies impact
+              </li>
+            </ul>
+          </div>
+        </div>
+    </div>
+  )
+
+  return typeof document !== 'undefined'
+    ? createPortal(drawerContent, document.body)
+    : null
+}
+
 function StarRating({ value, max = 5, onChange }: { value: number; max?: number; onChange?: (v: number) => void }) {
   return (
     <div className="flex gap-1">
@@ -104,7 +330,7 @@ function StarRating({ value, max = 5, onChange }: { value: number; max?: number;
           key={i}
           type="button"
           onClick={() => onChange?.(i + 1)}
-          className={`transition text-2xl ${i < value ? 'text-yellow-400' : 'text-gray-600 hover:text-yellow-500/70'}`}
+          className={`transition text-2xl ${i < value ? 'text-yellow-400' : 'text-gray-500 hover:text-yellow-500/70'}`}
         >
           ★
         </button>
@@ -176,6 +402,26 @@ export function TaskReviewPanel({
   const [showRejectModal, setShowRejectModal] = useState(false)
   const [rejectReason, setRejectReason] = useState(REJECT_REASONS[0])
   const [rejectFeedback, setRejectFeedback] = useState('')
+
+  // Drawer state
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  const [selectedFinding, setSelectedFinding] = useState<InsightFinding | null>(null)
+  const [activeTab, setActiveTab] = useState<'problem' | 'impact' | 'cause' | 'realignment'>('problem')
+  const [seekToVideo, setSeekToVideo] = useState<((seconds: number) => void) | null>(null)
+
+  const openDrawer = (finding: InsightFinding) => {
+    setSelectedFinding(finding)
+    setActiveTab('problem')
+    setDrawerOpen(true)
+  }
+
+  const isFindingSelected = (finding: InsightFinding) => {
+    return selectedFinding === finding && drawerOpen
+  }
+
+  const closeDrawer = () => {
+    setDrawerOpen(false)
+  }
 
   const handleApprove = async () => {
     setError(null)
@@ -271,15 +517,13 @@ export function TaskReviewPanel({
   const ai = selectedSubmission.aiAnalysis
   const insights = selectedSubmission.insights
 
-  const getYouTubeEmbedUrl = (url: string) => {
+  const getYouTubeVideoId = (url: string): string | null => {
     try {
       if (url.includes('youtube.com/watch?v=')) {
-        const v = new URL(url).searchParams.get('v')
-        return v ? `https://www.youtube.com/embed/${v}` : null
+        return new URL(url).searchParams.get('v')
       }
       if (url.includes('youtu.be/')) {
-        const id = url.split('youtu.be/')[1]?.split('?')[0]?.split('&')[0]
-        return id ? `https://www.youtube.com/embed/${id}` : null
+        return url.split('youtu.be/')[1]?.split('?')[0]?.split('&')[0] ?? null
       }
     } catch {
       return null
@@ -287,8 +531,8 @@ export function TaskReviewPanel({
     return null
   }
 
-  const videoEmbedUrl = selectedSubmission.videoUrl ? getYouTubeEmbedUrl(selectedSubmission.videoUrl) : null
-  const isYouTube = !!videoEmbedUrl
+  const youtubeVideoId = selectedSubmission.videoUrl ? getYouTubeVideoId(selectedSubmission.videoUrl) : null
+  const isYouTube = !!youtubeVideoId
 
   const formatTimestamp = (sec: number) => {
     if (sec <= 0) return '--:--'
@@ -313,21 +557,6 @@ export function TaskReviewPanel({
         findingsBySeverity.low.length >
       0
     : false
-
-  // Mini-funnel: task.steps with mock status/timestamp, or full mock
-  const funnelSteps =
-    task.steps?.length
-      ? task.steps.map((step, i) => {
-          const mock = MOCK_MINI_FUNNEL[i]
-          const completedCount = ai?.requirementsMet.length ?? 0
-          const isCompleted = i < completedCount
-          return {
-            step,
-            status: (isCompleted ? 'completed' : (mock?.status ?? 'abandoned')) as 'completed' | 'abandoned',
-            timestamp: isCompleted ? (mock?.timestamp ?? '--:--') : undefined,
-          }
-        })
-      : MOCK_MINI_FUNNEL
 
   return (
     <div className="space-y-8">
@@ -407,15 +636,12 @@ export function TaskReviewPanel({
 
       {/* Video — between top bar and Findings */}
       {selectedSubmission.videoUrl ? (
-        isYouTube ? (
+        isYouTube && youtubeVideoId ? (
           <Card variant="glass" className="border-white/5 bg-[#1a1a1a]/80 backdrop-blur rounded-2xl overflow-hidden p-0">
             <div className="relative aspect-video bg-[#0a0a0a]">
-              <iframe
-                src={videoEmbedUrl!}
-                title="Submitted video"
-                className="absolute inset-0 w-full h-full"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
+              <YouTubeEmbed
+                videoId={youtubeVideoId}
+                onReady={(seekTo) => setSeekToVideo(() => seekTo)}
               />
             </div>
           </Card>
@@ -433,10 +659,10 @@ export function TaskReviewPanel({
         </Card>
       )}
 
-      {/* Main: Findings + Mini-Funnel (full width) */}
+      {/* Main: Findings */}
       <div className="space-y-6">
-          {/* Bloc 2: Findings Matrix (RITE structure from insights analysis) */}
-          <Card variant="glass" className="border-white/5 bg-[#1a1a1a]/80 backdrop-blur rounded-2xl p-6">
+          {/* Findings Matrix (RITE structure from insights analysis) */}
+          <div>
             <div className="flex items-center justify-between mb-4">
               <h4 className="font-semibold text-xs text-gray-400 uppercase tracking-wider">Findings priorisés</h4>
               {!insights && selectedSubmission.videoUrl && (
@@ -459,48 +685,48 @@ export function TaskReviewPanel({
                 </Button>
               )}
             </div>
-            <div className="space-y-4">
+            <div className="space-y-6">
               {hasFindings && findingsBySeverity ? (
                 <>
                   {findingsBySeverity.critical.length > 0 && (
-                    <div>
-                      <p className="text-xs font-bold text-red-400 uppercase mb-2">Critical (Bugs & bloquants)</p>
-                      <ul className="space-y-3">
+                    <Card variant="glass" className="border-white/5 bg-[#1a1a1a]/80 backdrop-blur rounded-2xl p-6">
+                      <p className="text-xs font-bold text-red-400 uppercase tracking-wider mb-4">Critical (Bloquants)</p>
+                      <div className="space-y-3">
                         {findingsBySeverity.critical.map((f, i) => (
-                          <InsightCard key={i} finding={f} formatTimestamp={formatTimestamp} variant="critical" />
+                          <SignalPile key={`critical-${i}`} finding={f} formatTimestamp={formatTimestamp} onClick={() => openDrawer(f)} isSelected={isFindingSelected(f)} />
                         ))}
-                      </ul>
-                    </div>
+                      </div>
+                    </Card>
                   )}
                   {findingsBySeverity.high.length > 0 && (
-                    <div>
-                      <p className="text-xs font-bold text-orange-400 uppercase mb-2">High (UX Friction & confusion)</p>
-                      <ul className="space-y-3">
+                    <Card variant="glass" className="border-white/5 bg-[#1a1a1a]/80 backdrop-blur rounded-2xl p-6">
+                      <p className="text-xs font-bold text-orange-400 uppercase tracking-wider mb-4">High (Friction)</p>
+                      <div className="space-y-3">
                         {findingsBySeverity.high.map((f, i) => (
-                          <InsightCard key={i} finding={f} formatTimestamp={formatTimestamp} variant="high" />
+                          <SignalPile key={`high-${i}`} finding={f} formatTimestamp={formatTimestamp} onClick={() => openDrawer(f)} isSelected={isFindingSelected(f)} />
                         ))}
-                      </ul>
-                    </div>
+                      </div>
+                    </Card>
                   )}
                   {findingsBySeverity.medium.length > 0 && (
-                    <div>
-                      <p className="text-xs font-bold text-yellow-400 uppercase mb-2">Medium (Inefficiency)</p>
-                      <ul className="space-y-3">
+                    <Card variant="glass" className="border-white/5 bg-[#1a1a1a]/80 backdrop-blur rounded-2xl p-6">
+                      <p className="text-xs font-bold text-yellow-400 uppercase tracking-wider mb-4">Medium (Inefficiency)</p>
+                      <div className="space-y-3">
                         {findingsBySeverity.medium.map((f, i) => (
-                          <InsightCard key={i} finding={f} formatTimestamp={formatTimestamp} variant="medium" />
+                          <SignalPile key={`medium-${i}`} finding={f} formatTimestamp={formatTimestamp} onClick={() => openDrawer(f)} isSelected={isFindingSelected(f)} />
                         ))}
-                      </ul>
-                    </div>
+                      </div>
+                    </Card>
                   )}
                   {findingsBySeverity.low.length > 0 && (
-                    <div>
-                      <p className="text-xs font-bold text-blue-400 uppercase mb-2">Low (Suggestions)</p>
-                      <ul className="space-y-3">
+                    <Card variant="glass" className="border-white/5 bg-[#1a1a1a]/80 backdrop-blur rounded-2xl p-6">
+                      <p className="text-xs font-bold text-blue-400 uppercase tracking-wider mb-4">Low (Suggestions)</p>
+                      <div className="space-y-3">
                         {findingsBySeverity.low.map((f, i) => (
-                          <InsightCard key={i} finding={f} formatTimestamp={formatTimestamp} variant="low" />
+                          <SignalPile key={`low-${i}`} finding={f} formatTimestamp={formatTimestamp} onClick={() => openDrawer(f)} isSelected={isFindingSelected(f)} />
                         ))}
-                      </ul>
-                    </div>
+                      </div>
+                    </Card>
                   )}
                 </>
               ) : insights && !hasFindings ? (
@@ -516,24 +742,7 @@ export function TaskReviewPanel({
                 </p>
               )}
             </div>
-          </Card>
-
-          {/* Bloc 4: Mini-Funnel (Task Breakdown) */}
-          <Card variant="glass" className="border-white/5 bg-[#1a1a1a]/80 backdrop-blur rounded-2xl p-6">
-            <h4 className="font-semibold text-xs text-gray-400 uppercase tracking-wider mb-4">Mini-Funnel (étapes)</h4>
-            <ul className="space-y-3">
-              {funnelSteps.map((item, i) => (
-                <li key={i} className="flex items-center justify-between text-sm">
-                  <span className="text-gray-300">{item.step}</span>
-                  {item.status === 'completed' ? (
-                    <span className="text-green-400">✅ [{(item as { step: string; status: 'completed'; timestamp?: string }).timestamp ?? '--:--'}]</span>
-                  ) : (
-                    <span className="text-red-400">❌ Abandonné</span>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </Card>
+          </div>
       </div>
 
       {/* Other Submissions Navigation */}
@@ -566,6 +775,19 @@ export function TaskReviewPanel({
             ))}
           </div>
         </div>
+      )}
+
+      {/* Signal Drawer - Deep exploration of a single finding */}
+      {selectedFinding && (
+        <SignalDrawer
+          finding={selectedFinding}
+          isOpen={drawerOpen}
+          onClose={closeDrawer}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          formatTimestamp={formatTimestamp}
+          onJumpToMoment={seekToVideo ?? undefined}
+        />
       )}
 
       {/* Quality Control: Approve Modal */}

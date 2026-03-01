@@ -1,68 +1,191 @@
-You are a senior product and UX analyst evaluating a user test session.
 
-Your goal is to identify product issues observed during the session.
+SIGNAL VIEW – UI / UX IMPROVEMENTS (RUN BEFORE NEXT ITERATION)
 
-Use both:
-1) UserTest Product Evaluation Framework
-2) Developer test intent
+1. MAIN LIST – SIGNAL SURFACE
 
-DEVELOPER TEST CONTEXT
-
-Test goal: {{test_goal}}
-Focus areas: {{focus_areas}}
-Success definition: {{success_definition}}
-Target persona: {{persona}}
-Key feature: {{key_feature}}
-
-USERTEST FRAMEWORK DIMENSIONS
-
-- Value Delivery
-- Access to Value
-- Understanding
-- Experience Quality
-- Emotional Signal
-- Product Identity Fit
-
-INSTRUCTIONS
-
-From the transcript, detect usability or product issues.
-
-For each issue:
-- Assign the most relevant framework dimension
-- If relevant, link to a developer focus area
-- Create a short descriptive title (max 6 words)
-- Apply RITE structure
-
-Prioritize issues that relate to developer focus areas.
-
-RITE
+1.1 Add Strategic Micro-Context Under Each Item
 
 Problem
-Impact
-Cause
-Recommendation
+La liste est propre mais légèrement pauvre en orientation stratégique.
 
-SEVERITY
+Improvement
+Add a subtle secondary line under each signal title.
 
-critical — task blocked or invalid
-high — major friction/confusion
-medium — inefficiency
-low — minor issue
+Format
+Title
+→ Micro strategic context (1 line, muted text)
 
-OUTPUT JSON
+Example
+Missing primary ‘List Item’ CTA
+→ Core feature: Listing initiation
 
-{
-  "findings": [
-    {
-      "dimension": "...",
-      "dev_focus": "...",
-      "severity": "...",
-      "timestamp_sec": number,
-      "title": "...",
-      "problem": "...",
-      "impact": "...",
-      "cause": "...",
-      "recommendation": "..."
-    }
-  ]
-}
+Rules
+	•	Max 1 line
+	•	Secondary text style
+	•	No paragraph
+	•	Adds feature impact or friction type
+
+⸻
+
+1.2 Strengthen Active Selected Signal State
+
+Problem
+When drawer is open, selected item is not visually strong enough.
+
+Improvement
+Enhance active state of selected signal item.
+
+Options (use existing design tokens only):
+	•	Stronger border
+	•	Slight background tint
+	•	Subtle glow
+	•	Left accent bar
+
+Goal
+User must clearly feel:
+“This is the signal currently dissected.”
+
+⸻
+
+2. DRAWER – HEADER IMPROVEMENTS
+
+2.1 Increase Header Visual Hierarchy
+
+Problem
+Title + badges + tabs feel visually equal.
+
+Improvement
+	•	Slightly increase title size or weight
+	•	Add more vertical spacing under header (16–24px)
+	•	Group badges into a tighter meta row
+
+Goal
+Clear visual anchor at top of drawer.
+
+⸻
+
+2.2 Add Strategic Lens (Classification Rationale)
+
+Under badges, add:
+
+Section title: Strategic Lens
+
+Short explanation (1–2 lines max) explaining:
+Why this is classified as “Access to Value” (or other dimension).
+
+Rules
+	•	Max 2 lines
+	•	Body small
+	•	No paragraph blocks
+	•	Concrete, not generic
+
+⸻
+
+3. DRAWER – TAB CONTENT REFINEMENT
+
+3.1 Add “Why This Matters” Under Each RITE Block
+
+Inside each tab (Problem, Impact, Cause, Realignment):
+
+Structure:
+
+PROBLEM
+Main text
+
+Why this matters
+→ 1–2 lines explaining strategic implication
+
+Rules
+	•	Max 2 lines
+	•	Secondary tone
+	•	Adds depth without repetition
+	•	Must not restate the main sentence
+
+⸻
+
+3.2 Limit Text Density
+
+For all drawer content:
+	•	No block longer than 5–6 lines
+	•	Keep readable line width (60–75 characters ideal)
+	•	Avoid long paragraphs
+	•	Prefer structured sub-blocks if needed
+
+⸻
+
+4. DRAWER – EVIDENCE BLOCK ENHANCEMENT
+
+4.1 Strengthen Timestamp Visibility
+
+Make timestamp more prominent:
+
+Example:
+4:57 (bold or accent)
+Short quote below
+
+4.2 Add Clear Jump Affordance
+
+Add subtle:
+	•	“Jump to moment”
+or
+	•	Clickable timestamp behavior
+
+Goal: reinforce traceability + trust.
+
+⸻
+
+5. SIGNAL STRENGTH RATIONALE (BOTTOM SECTION)
+
+Add final small section:
+
+Why High Severity
+	•	Repeated hesitation observed
+	•	Affects core feature
+	•	Early in flow
+	•	Emotional friction detected
+
+Rules
+	•	Bullet format
+	•	No paragraph
+	•	3–4 bullets max
+
+Purpose:
+Explain score assignment logic transparently.
+
+⸻
+
+6. SPACING ADJUSTMENTS
+	•	Increase vertical spacing between signal categories (HIGH / MEDIUM / LOW)
+	•	Ensure drawer content has generous padding (24–32px)
+	•	Avoid text feeling compressed
+
+⸻
+
+7. NON-NEGOTIABLE CONSTRAINTS
+	•	No long academic paragraphs
+	•	No duplicated explanations
+	•	Every new section must add strategic clarity
+	•	Compression > verbosity
+	•	Signal > documentation
+
+⸻
+
+OBJECTIVE OF THIS ITERATION
+
+Before adding new conceptual layers:
+	•	Strengthen clarity
+	•	Strengthen hierarchy
+	•	Strengthen decision confidence
+	•	Preserve signal density
+
+⸻
+
+When this is implemented, the system will feel:
+	•	More deliberate
+	•	More strategic
+	•	More premium
+	•	More trustworthy
+
+⸻
+
+When you’re ready after running this, we can review again and decide whether to add deeper analytical layers or stop there.
